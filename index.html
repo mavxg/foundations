@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Foundation</title>
+	<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+	<div id="content" class="content">
+	<h1>Foundations</h1>
+	<p>Following on from the example set by Eve lang that providing a unified datastructure can simplify code to an enormous extent. This is an attempt to suggest relaxing the unification with regard to the underlying storage mechanism.</p>
+	<p>Eve used EAV (entity, attribute, value) tuples for all data. While this has the nice property of not privileging any particular access path it also has this as a disadvantage that it can be very inefficient for certain use cases.</p>
+	<p>EAV databases can be considered as a very sparse multi dimensional array. Each attribute is effectively a dimension. Here we consider the posibility to have some data stored in a way that restricts the dimensions while allowing the same uniform language of access.</p>
+
+	<h2>Create dummy data in various forms</h2>
+	<p>Example: Project work items from systems that store the items in different ways (tables)</p>
+	<p>You want to reference the other tables and be able to do things like show all your work items in all projects as a single unified table.</p>
+	<p>One such table has multiple projects while others tables are single project tables. This is so we can consider embedding external dimensions.</p>
+	<p>We also need to have the idea that some of these things will be stored already as the union of multiple tables</p>
+<script type="text/javascript">
+function select(arr) {
+	var i = Math.floor(Math.random() * arr.length);
+	return arr[i];
+};
+
+function description() {
+	const verb = ["Make", "Develop", "Fix", "Create", "Debug"];
+	const noun = ["startup", "admin", "document", "user"];
+	const object = ["screen", "function", "list", "display", "service"];
+	const reason = [
+		"it is too long",
+		"it is too slow",
+		"it doesn't do what we need",
+		"all the cats fall out"
+	];
+
+	return (select(verb)
+		+ " the " + select(noun)
+		+ " " + select(object) +
+		" as " + select(reason) + ".");
+};
+
+const years = 365.24 + 24 * 60 * 60;
+function due() {
+	//return random date from now until 3 years from now
+	return Date.now() + Math.floor(Math.random() * (3 * years));
+}
+
+//multiple projects with multiple tables
+var table1 = function generate_table1(n=300) {
+	const status = ["todo","working","testing","done"]
+	const projects = {
+		1: {_:1, name:"Chalk"},
+		2: {_:2, name:"Oath"},
+		3: {_:3, name:"Grove"},
+		4: {_:4, name:"SuperSecretSquirelProject"},
+	};
+	const proj = Object.keys(projects);
+
+	const human_cattle = {
+		1: {_:1, name:"mavxg"},
+		2: {_:2, name:"nandrews"},
+		3: {_:3, name:"sstevens"},
+		4: {_:4, name:"momo"},
+		5: {_:5, name:"stu"},
+	};
+	const cattle = Object.keys(human_cattle);
+
+	var workitems = {};
+
+	for (var i=1; i <= n;i++) {
+		workitems[i] = {
+			_:i,
+			project:select(proj),
+			assigned_to:select(cattle),
+			description:description(),
+			due:due(),
+			status:select(status)
+		};
+	}
+
+	return {projects, human_cattle, workitems};
+
+}();
+
+var table2 = function generate_table2(n = 50) {
+	const queues = ["todo","in progress", "testing", "staging", "production"];
+	const type = ["feature", "bug", "task"];
+	const people = ["mavxg", "nandrews", "mwilliams", "craymond"];
+	const developers = ["mavxg", "nandrews"];
+	const effort = [1,2,3,4,5,6,7,8,9,10]
+
+	var workitems = [];
+
+	for (var _id=1; _id <= n; _id++) {
+		workitems.push({
+			_id,
+			type: select(type),
+			developer: select(developers),
+			created_by: select(people),
+			title: description(),
+			effort: select(effort),
+			queue: select(queues)
+		});
+	}
+	return workitems;
+}();
+
+//generate items that have dependencies or a start date
+// and no developer/assigned to dimension
+var table3 = function generate_table3(n = 50) {
+	const statuses = ["todo","in progress", "testing", "staging", "production"];
+	const type = ["feature", "bug", "task"];
+	const people = ["mavxg", "nandrews", "mwilliams", "craymond"];
+	//const developers = ["mavxg", "nandrews"]; //
+	const days = [1,2,3,4,5,6,7,8,9,10,20,30];
+
+
+	var workitems = {};
+
+	for (var _id=1; _id <= n; _id++) {
+		var wi = {
+			_id,
+			type: select(type),
+			//developer: select(developers),
+			created_by: select(people),
+			title: description(),
+			days: select(days),
+			status: select(statuses)
+		};
+
+		if (Math.random() > 0.2) {
+			wi.depends_on = select(Object.keys(workitems));
+		} else {
+			wi.start = due();
+		}
+
+		workitems[_id] = wi;
+	}
+	return workitems;
+}();
+</script>
+
+	<h2>Project and Union</h2>
+	<p>Union the tables together into a common structure.</p>
+	<p>It should be possible to do this without loosing data. The common form should be a superset of all the attributes not a lowest common denominator.</p>
+	<p>Note that the projection of external tables creates new local dimensions that may or may not be coincident to the external tables dimensions. For example we may have an internal dimension of queue that will be a different dimension (with the same name) as the queue from the external tables.</p>
+
+<script type="text/javascript">
+//Provide multi-dimensional sparse array view over the tables.
+//
+// dimensions for table1 = project/name project/_id developer/_id
+//    developer/name item/_id item/project(project/_id) item/assigned_to(developer/_id) item/due
+//    item/description item/status type(project|item|developer)?
+//
+// Are there any other ways of looking at the dimensions provided by the data?
+//
+//   status with item/status varying over status.
+//
+// Note: some of these dimensions are clearly coincident. project/name varies by project(id)
+//       developer/name varies by developer(id). This suggests that some form of index over
+//       this table structure would be advised
+//
+// dimensions for table2 = _id, type*, developer, created_by, title, effort, queue
+//
+//    missing for table2 is the Project is "BigProject2"
+//
+// *not the same as type in table1
+//
+// dimensions for table3 = _id, type*, created_by, title, days, status
+//
+//    missing for table3 is the Project is "SlackingOffProject" and the items all belong
+//    to the developer "mavxg".
+//
+// Our job should be to point out coincident dimensions (e.g. in table 1 that item/project varies over
+//  the same dimension as project/_id.) We should not need to overspecify any of the other items. We get
+//  a dynamic dimension for all other attributes.
+//
+// Our internal dimensions need to include:
+//    project/_id project/name(project/_id) item/description item/queue item/due
+//    type(project|item) item/project(project/_id)
+// We may also want:
+//    developer/_id developer/name item/assigned_to(developer/_id)
+// What I really want to avoid is introducing my own concept of an item/_id. For each value
+//   you return you have a set of dimensions that uniquely idenfifies that item (i.e. the dimensions that your item varies over.)
+</script>
+
+	<h2>Overlay/Merge own data.</h2>
+	<p>All the tables in the system will live under some context that we import. They might be tables we created directly in our root context. Or they might exist at some unique referenceable id within another context. We may get multiple tables from the same context. By importing a context we are in some ways cloning that context (lazily) into our own. Imported contexts should behave like git submodules. If we make an update to elements within that imported context then those updates should overly the imported context so they can be submitted back to the owner of that context or merged with their updates within our private space/context.</p>
+	<p>We should be able to include our own updates to any datastructure. This should behave like a level db where we keep our updates within our context until we are ready to push them to the underlying context.</p>
+	<p>Note: for some overlay data will be imposible to merge back into the source context. For instance if we enrich the source data with additional attributes that are not supported at the source.</p>
+
+<script type="text/javascript">
+</script>
+
+	<h2>Derived data</h2>
+	<p>We should be able to perform selections</p>
+	<p>Example: Select all our workitems by status. Order by due date within status.</p>
+
+<script type="text/javascript">
+</script>
+
+	<h2>Incremental calcs.</h2>
+	<p>All derived data should be updated incrementally as data is added or changed at any level.</p>
+
+	<h2>Measures vs Dimensions</h2>
+	<p>We make no distinction between a measure and a dimension. This distinction in things like OLAP seem to be providing privileged access paths to data. It shouldn't matter to a consumer of that data beyond the performance of the expression they are trying to evaluate.</p>
+	<p>Take <em>effort</em> as an example. Assuming we have a restricted set of values (say 1 to 10) then this could be a dimension or a measure.</p>
+
+	<h2>Utilities</h2>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js" type="text/javascript">//import highlighter</script>
+<script type="text/javascript">
+//Show all your code
+document.body.onload = function() {
+	var content = document.getElementById("content");
+	content.querySelectorAll("script").forEach(e => {
+		var pre = document.createElement('pre');
+		var code = document.createElement('code');
+		code.className = "javascript";
+		var text = document.createTextNode(e.text.trim());
+		code.appendChild(text);
+		pre.appendChild(code);
+		hljs.highlightBlock(pre);
+		content.insertBefore(pre, e);
+	});
+};
+</script>
+
+
+	</div>
+<div id="app"></div>
+
+</body>
+</html>

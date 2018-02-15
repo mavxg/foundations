@@ -1,0 +1,21 @@
+<script type="text/javascript">
+var modules = {};
+function require(name) {
+	return modules[name].exports;
+};
+function define(name, factory) {
+	var module = modules[name] = {
+		exports: {}
+	};
+	factory(module,module.exports,require)
+};
+</script>
+<script type="text/javascript" src="friar.js"></script>
+<script type="text/javascript" src="editor.js"></script>
+<script type="text/javascript">
+//this works in Chrome and Edge
+var {renderComponent, createClass, DOM} = require('friar');
+var {Editor,Document} = require('editor');
+
+var a = {renderComponent}
+</script>
