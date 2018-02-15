@@ -182,7 +182,10 @@ var table3 = function generate_table3(n = 50) {
 // We may also want:
 //    developer/_id developer/name item/assigned_to(developer/_id)
 // What I really want to avoid is introducing my own concept of an item/_id. For each value
-//   you return you have a set of dimensions that uniquely idenfifies that item (i.e. the dimensions that your item varies over.)
+//   you return you have a set of dimensions that uniquely idenfifies that item 
+//   (i.e. the dimensions that your item varies over. It should be possible to know that any
+//    given dimension is dependent on another so that you know if you are specifying an update on
+//    an item that you can use its external item/_id as the full specification)
 </script>
 
 	<h2>Overlay/Merge own data.</h2>
