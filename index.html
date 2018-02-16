@@ -12,6 +12,9 @@
 	<p>Eve used EAV (entity, attribute, value) tuples for all data. While this has the nice property of not privileging any particular access path it also has this as a disadvantage that it can be very inefficient for certain use cases.</p>
 	<p>EAV databases can be considered as a very sparse multi dimensional array. Each attribute is effectively a dimension. Here we consider the posibility to have some data stored in a way that restricts the dimensions while allowing the same uniform language of access.</p>
 
+	<h1>Example</h1>
+	<p>Example project work items from different systems stored in different forms. Similar to the example shown by Coda.io we want to have this data displayed as a Gantt chart and also as a Kanban board.</p>
+
 	<h2>Create dummy data in various forms</h2>
 	<p>Example: Project work items from systems that store the items in different ways (tables)</p>
 	<p>You want to reference the other tables and be able to do things like show all your work items in all projects as a single unified table.</p>
@@ -129,7 +132,13 @@ var table3 = function generate_table3(n = 50) {
 			status: select(statuses)
 		};
 
-		if (Math.random() > 0.2) {
+		var r = Math.random();
+		if (r > 0.9) {
+			//depend on more than one item
+			wi.depends_on = [select(Object.keys(workitems)), select(Object.keys(workitems))];
+			if wi.depends_on[0] == wi.depends_on[1]:
+				wi.depends_on = wi.depends_on[0];
+		} else if (r > 0.2) {
 			wi.depends_on = select(Object.keys(workitems));
 		} else {
 			wi.start = due();
@@ -188,6 +197,19 @@ var table3 = function generate_table3(n = 50) {
 //    an item that you can use its external item/_id as the full specification)
 </script>
 
+<script type="text/javascript">
+// Qube has the function Index(data, keys) for the purpose of normalising external data into multi
+// dimensional arrays. Everything is stored in nested hash tables. So if keys = [country,county,gender] then
+// the outside hash would have the all the values of country from the data. The values of the lowest level
+// are arrays of the original data rows (which are themselves hashes)
+// We also store all the values available for all of the keys.
+
+// An alternative approach might be to consider the original data to be an EAV index and build and AVE
+//  where E is either an offset into the EAV index or the full row from the EAV index.
+// Note: an issue with this approach is when we come to update this index we will probably be changing
+//   all our entity id values which are just the offsets into the EAV array.
+</script>
+
 	<h2>Overlay/Merge own data.</h2>
 	<p>All the tables in the system will live under some context that we import. They might be tables we created directly in our root context. Or they might exist at some unique referenceable id within another context. We may get multiple tables from the same context. By importing a context we are in some ways cloning that context (lazily) into our own. Imported contexts should behave like git submodules. If we make an update to elements within that imported context then those updates should overly the imported context so they can be submitted back to the owner of that context or merged with their updates within our private space/context.</p>
 	<p>We should be able to include our own updates to any datastructure. This should behave like a level db where we keep our updates within our context until we are ready to push them to the underlying context.</p>
@@ -236,7 +258,7 @@ document.body.onload = function() {
 	content.querySelectorAll("script").forEach(e => {
 		var pre = document.createElement('pre');
 		var code = document.createElement('code');
-		code.className = "javascript";
+		pre.className = "javascript";
 		var text = document.createTextNode(e.text.trim());
 		code.appendChild(text);
 		pre.appendChild(code);
