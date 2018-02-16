@@ -201,6 +201,22 @@ var table3 = function generate_table3(n = 50) {
 	<p>Example: Select all our workitems by status. Order by due date within status.</p>
 
 <script type="text/javascript">
+//end = start + duration
+//duration = end - start
+//start = max(depends_on.end) # start at the end of your dependents
+
+//# gantt context
+//order = _id
+//order = max(depends_on.order) # group item with its last parent
+//sort = (order, start, end) # within each order group put the earliest first
+
+//# kanban context
+//priority = 0 # default priority where non specified
+//sort = (-priority, -due)
+
+//Note on Sort. If we want to sort in descending order then we do Neg(thing).
+//  We then define Compare(Neg(A), Neg(B)) to be Neg(Compare(A,B)) and thus avoid
+//  the issue of evaluating Neg of something that doesn't have a negation (like a string)
 </script>
 
 	<h2>Incremental calcs.</h2>
