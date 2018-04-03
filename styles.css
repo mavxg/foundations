@@ -21,6 +21,16 @@ h2:before {
 	position: absolute;
 	left: -1.5em;
 }
+/* Note: rem doesn't change with font size but em does.
+   rem is based on body font size
+   em is based on parent font size */
+blockquote {
+  padding: 1rem;
+margin-left: -1rem;
+margin-right: -1rem;
+border-left: 8px solid steelblue;
+background-color: lightblue;
+}
 
 .content {
 	max-width: 50em;
@@ -31,7 +41,16 @@ h2:before {
 pre {
 	color: black;
 	background-color: white;
+border-left: 8px solid #10100e;
 }
+
+path {
+  pointer-events: all;
+  fill: none;
+  stroke: #666;
+  stroke-opacity: 0.2;
+}
+
 
 /*
 Monokai style - ported by Luigi Maselli - http://grigio.org
@@ -40,9 +59,9 @@ Monokai style - ported by Luigi Maselli - http://grigio.org
 .hljs {
   display: block;
   overflow-x: auto;
-  padding: 1em;
-  margin-left: -1em;
-  margin-right: -1em;
+  padding: 1rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
   background: #272822; color: #ddd;
 }
 

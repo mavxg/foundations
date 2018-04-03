@@ -10,8 +10,221 @@
 	<h1>Foundations</h1>
 	<p>Following on from the example set by Eve lang that providing a unified datastructure can simplify code to an enormous extent. This is an attempt to suggest relaxing the unification with regard to the underlying storage mechanism.</p>
 	<p>Eve used EAV (entity, attribute, value) tuples for all data. While this has the nice property of not privileging any particular access path it also has this as a disadvantage that it can be very inefficient for certain use cases.</p>
+	<p>Bloom language: TODO: how does this fit in?</p>
+	<p>Generic Join paper</p>
+	<p>Paradigms of computing book: in particular Linda language</p>
 	<p>EAV databases can be considered as a very sparse multi dimensional array. Each attribute is effectively a dimension. Here we consider the posibility to have some data stored in a way that restricts the dimensions while allowing the same uniform language of access.</p>
+	<h2>Worlds/JS</h2>
+	<p>A world is a set of changes to slots in a parent world. When making changes in a child world reads are tracked as well as writes so that when you want to commit the changes you know what must not have changed in the parent world. This lets you do transactions.</p>
 
+	<h2>TODO</h2>
+	<blockquote>Simple friar drag and drop example where the drag changes the root world values that then feed back around to the render stage.</blockquote>
+	<script type="text/javascript">
+//keep for after body loaded.
+var onbodies = [];
+function onbody(f) { onbodies.push(f); }
+
+//very simple require.js
+var modules = {};
+function require(name) {
+	return modules[name].exports;
+};
+function define(name, factory) {
+	var module = modules[name] = {
+		exports: {}
+	};
+	factory(module,module.exports,require)
+};
+</script>
+<script src="friar.js" type="text/javascript">//import friar</script>
+<script src="editor.js" type="text/javascript">//import editor</script>
+<script src="https://d3js.org/d3-voronoi.v1.min.js">//import voronoi</script>
+<script type="text/javascript">
+//this works in Chrome, Safari, and Edge
+var {renderComponent, createClass, DOM} = require('friar');
+
+function renderCell(d) {
+	return "M" + d.join("L") + "Z";
+}
+
+function colors(s) {
+    return s.match(/.{6}/g).map(function(x) {
+      return "#" + x;
+    });
+}
+
+//FROM d3
+var COLS = colors("1f77b4aec7e8ff7f0effbb782ca02c98df8ad62728ff98969467bdc5b0d58c564bc49c94e377c2f7b6d27f7f7fc7c7c7bcbd22dbdb8d17becf9edae5");
+
+function color(i) {
+	return COLS[i % COLS.length];
+}
+
+
+
+var Circle = createClass({
+	getInitialState: function() {
+		this.event = null;
+		this.listeners = false;
+		return {};
+	},
+	mouseDown: function(event) {
+		this.event = event;
+		event.view.addEventListener("mousemove", this.mouseMove, true);
+		event.view.addEventListener("mouseup", this.mouseUp, true);
+		this.mousedownx = event.clientX;
+		this.mousedowny = event.clientY;
+		this.mousemoving = false;
+		this.listeners = true;
+	},
+	mouseMove: function(event) {
+		var {dragged} = this.props;
+		var node = this.node;
+		var svg = node.ownerSVGElement || node;
+		var point;
+		if (svg.createSVGPoint) {
+			point = svg.createSVGPoint();
+			point.x = event.clientX;
+			point.y = event.clientY;
+			point = point.matrixTransform(node.getScreenCTM().inverse());
+		} else {
+			var rect = node.getBoundingClientRect()
+			point = {
+				x:(event.clientX - rect.left - node.clientLeft),
+				y:(event.clientY - rect.top - node.clientTop),
+			};
+		}
+		dragged(point, this.props);
+	},
+	mouseUp: function(event) {
+		//remove the old event listeners.
+		event.view.removeEventListener("mouseup", this.mouseUp, true);
+		event.view.removeEventListener("mousemove", this.mouseMove, true);
+		this.listeners = false;
+	},
+ 	didMount: function() {
+		this.node.addEventListener("mousedown", this.mouseDown, false);
+
+	},
+	willUnmount: function() {
+		this.node.removeEventListener("mousedown", this.mouseDown, false);
+		var event = this.event;
+		if (this.listeners) {
+			event.view.removeEventListener("mouseup", this.mouseUp, true);
+			event.view.removeEventListener("mousemove", this.mouseMove, true);
+			this.listeners = false;
+		}
+	},
+	render: function() {
+		var {x,y,i,d,radius,color} = this.props;
+    		var id = "cell-" + i;
+    		var clip_path = "url(#clip-" + i + ")";
+
+		return DOM.g({}, [
+			DOM.path({d,id}),
+			DOM.clipPath({id:("clip-" + i)},[
+				DOM.use({'xlink:href':("#"+id)})]),
+			DOM.circle({'clip-path':clip_path, cx:x,cy:y,r:radius,style:{fill:color}}),
+		]);
+	}
+})
+// Inspiration: https://bl.ocks.org/mbostock/ec10387f24c1fad2acac3bc11eb218a5
+/*
+Ideally we want to write
+N = 20
+circles = range(N).map(i => {x:..,y:...})
+cells = voroni(circles) 
+
+we should then be able to define a view on cells (and circles.) If we then change N we should get extra circles but the existing circles and cells should not all be disturbed.
+
+We should be able to write
+N = {20, 30, 40}
+circles = range(N).map(i => {x:..,y:...})
+cells = voroni(circles) 
+And this will give us 3 disjoint sets of cells over dim(N)
+
+but...
+
+N = {20, 30, 40}
+M = max(N[N])
+circles = range(M).map(i => ,...)
+circles' = take(N, circles)
+cells = voroni(circles')
+
+Each of the views should have circles/cells in the same place and they should move together.
+
+*/
+var DragAndDrop = createClass({
+	getInitialState: function() {
+		var circles = [],
+		    radius = 32,
+		    height = 500,
+		    width = 960;
+		for (var i=0;i<20;i++) {
+			circles.push({
+				x: Math.round(Math.random() * (width - radius * 2) + radius),
+				y: Math.round(Math.random() * (height - radius * 2) + radius),
+				color: color(i),
+			});
+		}
+		this.voronoi = d3.voronoi()
+			.x(function(d) { return d.x; })
+			.y(function(d) { return d.y; })
+			.extent([[-1,-1],[width+1,height+1]]);
+
+		var cells = this.voronoi.polygons(circles).map(renderCell);
+		return {circles, radius, height, width, cells};
+	},
+	dragged: function(event, d) {
+		console.log('dragged')
+		var circles = this.state.circles.slice();
+		var c = circles[d.i] = Object.assign({},circles[d.i]);
+		c.x = event.x;
+		c.y = event.y;
+		cells = this.voronoi.polygons(circles).map(renderCell);
+		this.setState({circles, cells})
+	},
+	renderCircle: function(c, i) {
+		var {radius, cells} = this.state; //cells  cell:cells[i]
+		return Circle({x:c.x,y:c.y,radius, i, 
+			dragged:this.dragged, d:cells[i], color:c.color});
+	},
+	render: function() {
+		var {height, width, circles, radius} = this.state;
+		var cs = circles.map(this.renderCircle);
+		return DOM.svg({height, width},cs);
+	}
+});
+
+
+//render after body loaded
+onbody(function() { 
+	renderComponent(DragAndDrop({}),document.getElementById('app')); 
+});
+</script>
+	<div id="app"></div>
+	<blockquote>Change sub world while dragging and then commit on drop.</blockquote>
+	<script type="text/javascript">
+
+var DragAndDropWorlds = createClass({
+	didMount: function() {
+		//TODO: addEventListeners here
+	},
+	willUnmount: function() {
+		//TODO: removeEventListeners here
+	},
+	render: function() {
+		return DOM.p({},[DOM.text("Worlds example will go here.")])
+	}
+});
+
+//render after body loaded
+onbody(function() { 
+	renderComponent(DragAndDropWorlds({}),document.getElementById('app1')); 
+});
+</script>
+	<div id="app1"></div>
+	<blockquote>Worlds with dimensions rather than just simple slots.</blockquote>
 	<h1>Example</h1>
 	<p>Example project work items from different systems stored in different forms. Similar to the example shown by Coda.io we want to have this data displayed as a Gantt chart and also as a Kanban board.</p>
 
@@ -136,7 +349,7 @@ var table3 = function generate_table3(n = 50) {
 		if (r > 0.9) {
 			//depend on more than one item
 			wi.depends_on = [select(Object.keys(workitems)), select(Object.keys(workitems))];
-			if wi.depends_on[0] == wi.depends_on[1]:
+			if (wi.depends_on[0] == wi.depends_on[1])
 				wi.depends_on = wi.depends_on[0];
 		} else if (r > 0.2) {
 			wi.depends_on = select(Object.keys(workitems));
@@ -147,6 +360,27 @@ var table3 = function generate_table3(n = 50) {
 		workitems[_id] = wi;
 	}
 	return workitems;
+}();
+
+//generate table4 dense matricies
+//Note: might also want multiple dense matricies over the same dimensions
+var table4 = function generate_table4() {
+	const developers = ["mavxg", "nandrews","stu"];
+	const weekdays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+	const basic_hours = [7.0,7.0,7.0,7.0,7.0,0.0,0.0];
+	var hours = [];
+
+	for (var i = 0; i < developers.length; i++) {
+		var r = Math.floor(Math.random() * 7);
+		hours = hours.concat(
+			basic_hours.slice(r, 7),
+			basic_hours.slice(0, r));
+	}
+	return {
+		dimensions: [{developers}, {weekdays}],
+		values: hours,
+	};
+
 }();
 </script>
 
@@ -216,6 +450,7 @@ var table3 = function generate_table3(n = 50) {
 	<p>Note: for some overlay data will be imposible to merge back into the source context. For instance if we enrich the source data with additional attributes that are not supported at the source.</p>
 
 <script type="text/javascript">
+// Merge at the context (space) level not at the table level.
 </script>
 
 	<h2>Derived data</h2>
@@ -265,12 +500,17 @@ document.body.onload = function() {
 		hljs.highlightBlock(pre);
 		content.insertBefore(pre, e);
 	});
+
+
+	for (var i = onbodies.length - 1; i >= 0; i--) {
+		onbodies[i]();
+	}
 };
 </script>
 
 
-	</div>
-<div id="app"></div>
+</div>
+
 
 </body>
 </html>
