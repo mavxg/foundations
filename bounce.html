@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Foundation - Bounce</title>
+	<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+	<div id="content" class="content">
+	<h1>Bouncing Balls test</h1>
+	<p>What mechanism gives you the best performance on boucing balls?</p>
+	<p>Can we approach that performance with something much higher level?</p>
+	<canvas id="canvas_1" width="500" height="500"></canvas>
+<script type="text/javascript">
+//On a surface pro in Chrome this method is ~20fps with 2000 balls and ~60fps with upto 400 balls
+(function(win) {
+	var canvas = document.getElementById("canvas_1");
+	var ctx = canvas.getContext("2d");
+	var width = 500;
+	var height = 500;
+	var n = 30000; // number of balls to calculate (20,000 per frame map object, 1,000,000 per frame in place Float64Array(s))
+	// 20,000 per frame map Float64Array(s)
+	var dn = 200; //number of balls to draw.
+	var r = 5;
+	var prev_t;
+	var balls = new Array(n).fill().map(function() {
+		return {
+			x: (Math.random() * (width - 2*r) + r),
+			y: (Math.random() * (height - 2*r) + r),
+			vx: (Math.random() * 3 - 1),
+			vy: (Math.random() * 4 + 1),
+		};
+	});
+
+	var x = new Float64Array(n);
+	var y = new Float64Array(n);
+	var vx = new Float64Array(n);
+	var vy = new Float64Array(n);
+
+	for (var i = 0; i < n; i++) {
+		x[i] = (Math.random() * (width - 2*r) + r);
+		y[i] = (Math.random() * (height - 2*r) + r);
+		vx[i] = (Math.random() * 3 - 1);
+		vy[i] = (Math.random() * 4 + 1);
+	}
+
+
+	function draw_ball(ball) {
+		ctx.beginPath();
+		ctx.arc(ball.x, ball.y, r, 0, 2 * Math.PI, true);
+
+		ctx.fillStyle = "steelblue";
+		ctx.strokeStyle="black";
+		ctx.closePath();
+		ctx.stroke();
+		ctx.fill();
+	}
+
+
+	function draw(balls) {
+		//ctx.clearRect(0,0,500,500);
+		ctx.fillStyle = "rgb(226,79,94)";
+		ctx.fillRect(0,0,500, 500);
+		const pi2 = 2 * Math.PI;
+		for (var i = 0; i < dn; i++) {
+			draw_ball(balls[i]);
+		}
+		//balls.forEach(draw_ball);
+	}
+
+	function draw_ball_bin(i)
+	{
+		ctx.beginPath();
+		ctx.arc(x[i], y[i], r, 0, 2 * Math.PI, true);
+
+		ctx.fillStyle = "steelblue";
+		ctx.strokeStyle="black";
+		ctx.closePath();
+		ctx.stroke();
+		ctx.fill();
+	}
+
+	function draw_bin()
+	{
+		ctx.fillStyle = "rgb(226,79,94)";
+		ctx.fillRect(0,0,500, 500);
+		const pi2 = 2 * Math.PI;
+		for (var i = 0; i <dn; i++) {
+			draw_ball_bin(i)
+		}
+	}
+
+	function move_ball(ball) {
+		var dt = this;
+		var {x,y,vx,vy} = ball;
+		if (x > (width - r)) vx = Math.abs(vx) * -0.9;
+		else if (x < r) vx = Math.abs(vx) * 0.9
+		if (y > (height - r)) vy = Math.abs(vy) * -0.9;
+		else if (y < r) vy = Math.abs(vy) * 0.9
+		if (y < (height - r)) vy += 0.07;
+		return {
+			x: (x + vx),
+			y: (y + vy),
+			vx,
+			vy,
+		};
+	}
+
+	function vx_map(vx, i) {
+		_x = x[i];
+		return (_x > (width - r) || _x < r) ? vx * -0.9 : vx;
+	}
+
+	function vy_map(vy, i) {
+		dt = this;
+		_y = y[i];
+		var _vy = (_y > (height - r) || _y < r) ? vy * -0.9 : vy;
+		return (_y < (height - r)) ? _vy + 0.07 * dt : _vy;
+	}
+
+	function x_map(x, i) {
+		var dt = this;
+		return x + vx[i] * dt;
+	}
+
+	function y_map(y, i) {
+		var dt = this;
+		return y + vy[i] * dt;
+	}
+
+	function move_balls_bin(dt) {
+		vx = vx.map(vx_map, dt)
+		vy = vy.map(vy_map, dt)
+		x = x.map(x_map, dt)
+		y = y.map(y_map, dt)
+	}
+
+	function move_ball_bin(dt, i) {
+		var _x = x[i], _y = y[i];
+		if (_x > (width - r) || _x < r) vx[i] *= -0.9;
+		if (_y > (height - r) || _y < r) vy[i] *= -0.9;
+		if (_y < (height - r)) vy[i] += 0.07 * dt;
+		y[i] += vy[i] * dt;
+		x[i] += vx[i] * dt;
+	}
+
+	function move_ball_d(dt, ball) {
+		var {x,y,vx,vy} = ball;
+		//console.log(dt)
+		if (x > (width - r) || x < r) vx = vx * -0.9;
+		if (y > (height - r) || y < r) vy = vy * -0.9;
+		if (y < (height - r)) vy += 0.07 * dt;
+		ball.x = x + vx * dt;
+		ball.y = y + vy * dt;
+		ball.vy = vy;
+		ball.vx = vx;
+	}
+
+
+	function step(timestamp) {
+		var dt = Math.min(3.0, (timestamp - prev_t) / 20);
+		prev_t = timestamp;
+
+		//draw(balls);
+		draw_bin();
+
+		//for (var i = 0; i <n; i++) {
+			//move_ball_d(dt, balls[i])
+		//	move_ball_bin(dt, i)
+		//}
+		move_balls_bin(dt);
+		//balls = balls.map(move_ball, dt)
+
+		requestAnimationFrame(step);
+	}
+	prev_t = performance.now();
+	requestAnimationFrame(step);
+})(window);
+</script>
+
+	<h2>Other options</h2>
+	<p>What if we have a set of vectors</p>
+
+<script type="text/javascript">
+</script>
+	<h2>Utilities</h2>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js" type="text/javascript">//import highlighter</script>
+<script type="text/javascript">
+//Show all your code
+document.body.onload = function() {
+	var content = document.getElementById("content");
+	content.querySelectorAll("script").forEach(e => {
+		var pre = document.createElement('pre');
+		var code = document.createElement('code');
+		pre.className = "javascript";
+		var text = document.createTextNode(e.text.trim());
+		code.appendChild(text);
+		pre.appendChild(code);
+		hljs.highlightBlock(pre);
+		content.insertBefore(pre, e);
+	});
+};
+</script>
+
+
+	</div>
+<div id="app"></div>
+
+</body>
+</html>
